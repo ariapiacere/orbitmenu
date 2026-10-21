@@ -1,0 +1,562 @@
+/* OrbitMenu radial menu. Items orbit a central hub on a dotted ring; the
+   selected direction lights up as a soft wedge and a needle tracks the pointer. */
+
+.om-root {
+  --om-accent: #9b8cff;
+  --om-item-size: 54px;
+  --om-hub-size: 100px;
+  --om-anim: 170ms;
+  --om-ease: cubic-bezier(0.2, 0.9, 0.25, 1.08);
+  --om-ease-out: cubic-bezier(0.25, 0.8, 0.3, 1);
+  --om-accent-soft: color-mix(in srgb, var(--om-accent) 20%, transparent);
+  --om-accent-glow: color-mix(in srgb, var(--om-accent) 42%, transparent);
+
+  /* Nebula (default, dark) */
+  --om-hub-bg: rgba(19, 17, 38, 0.94);
+  --om-hub-border: rgba(170, 160, 255, 0.22);
+  --om-disc-bg: rgba(31, 28, 60, 0.94);
+  --om-disc-border: rgba(190, 182, 255, 0.16);
+  --om-disc-hover: color-mix(in srgb, var(--om-accent) 30%, rgba(31, 28, 60, 0.96));
+  --om-icon: #e6e2ff;
+  --om-text: #f3f1ff;
+  --om-subtext: #b2abe3;
+  --om-label-bg: rgba(15, 13, 31, 0.86);
+  --om-ring: rgba(170, 160, 255, 0.32);
+  --om-wedge-line: rgba(200, 192, 255, 0.07);
+  --om-wedge-hover: color-mix(in srgb, var(--om-accent) 17%, transparent);
+  --om-halo: rgba(6, 5, 18, 0.34);
+  --om-shadow: 0 10px 28px rgba(4, 3, 14, 0.55), 0 2px 6px rgba(4, 3, 14, 0.4);
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  color: var(--om-text);
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.om-root[data-theme='daylight'] {
+  --om-hub-bg: rgba(255, 255, 255, 0.97);
+  --om-hub-border: rgba(40, 52, 120, 0.14);
+  --om-disc-bg: rgba(255, 255, 255, 0.98);
+  --om-disc-border: rgba(40, 52, 120, 0.13);
+  --om-disc-hover: color-mix(in srgb, var(--om-accent) 16%, #ffffff);
+  --om-icon: #27305e;
+  --om-text: #1b2045;
+  --om-subtext: #5a6189;
+  --om-label-bg: rgba(255, 255, 255, 0.95);
+  --om-ring: rgba(67, 97, 238, 0.32);
+  --om-wedge-line: rgba(30, 40, 100, 0.08);
+  --om-wedge-hover: color-mix(in srgb, var(--om-accent) 14%, transparent);
+  --om-halo: rgba(255, 255, 255, 0.4);
+  --om-shadow: 0 10px 26px rgba(20, 30, 80, 0.2), 0 2px 6px rgba(20, 30, 80, 0.14);
+}
+
+.om-root[data-theme='graphite'] {
+  --om-hub-bg: rgba(22, 22, 25, 0.95);
+  --om-hub-border: rgba(255, 255, 255, 0.1);
+  --om-disc-bg: rgba(36, 36, 40, 0.96);
+  --om-disc-border: rgba(255, 255, 255, 0.09);
+  --om-disc-hover: color-mix(in srgb, var(--om-accent) 26%, rgba(36, 36, 40, 0.97));
+  --om-icon: #f4f4f5;
+  --om-text: #fafafa;
+  --om-subtext: #a1a1aa;
+  --om-label-bg: rgba(18, 18, 20, 0.9);
+  --om-ring: rgba(255, 255, 255, 0.2);
+  --om-wedge-line: rgba(255, 255, 255, 0.06);
+  --om-wedge-hover: color-mix(in srgb, var(--om-accent) 16%, transparent);
+  --om-halo: rgba(0, 0, 0, 0.32);
+}
+
+.om-root.om-preview {
+  position: absolute;
+}
+
+.om-stage,
+.om-tethers,
+.om-trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.om-stage {
+  transition:
+    opacity calc(var(--om-anim) * 0.8) ease,
+    scale calc(var(--om-anim) * 0.8) ease;
+}
+
+.om-closing .om-stage {
+  opacity: 0;
+  scale: 0.97;
+}
+
+.om-tethers {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.om-tether {
+  stroke: var(--om-ring);
+  stroke-width: 2;
+  stroke-dasharray: 1 7;
+  stroke-linecap: round;
+}
+
+.om-trail {
+  pointer-events: none;
+}
+
+/* ───────── level ───────── */
+
+.om-level {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.om-level-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transition:
+    opacity var(--om-anim) var(--om-ease-out),
+    translate var(--om-anim) var(--om-ease-out);
+}
+
+/* Entry: start mostly visible and close to the final layout, so the menu
+   reads as "there" on the first frame and settles quickly. */
+.om-level.is-entering .om-level-inner {
+  opacity: 0.4;
+  translate: calc(var(--from-x, 0px) * 0.6) calc(var(--from-y, 0px) * 0.6);
+  transition: none;
+}
+
+.om-level.is-leaving .om-level-inner {
+  opacity: 0;
+  transition-duration: calc(var(--om-anim) * 0.7);
+}
+
+/* Soft halo so the menu stays legible over busy windows. */
+.om-level-inner::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 420px;
+  height: 420px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--om-halo) 0%, transparent 68%);
+  pointer-events: none;
+  transition: opacity var(--om-anim) ease;
+}
+
+.om-level.is-parent .om-level-inner::before {
+  opacity: 0;
+}
+
+.om-wedges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -50%;
+  overflow: visible;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 71%);
+  mask-image: radial-gradient(circle, #000 52%, transparent 71%);
+  transition: opacity var(--om-anim) ease;
+}
+
+.om-ring {
+  fill: none;
+  stroke: var(--om-ring);
+  stroke-width: 1.6;
+  stroke-dasharray: 1.5 7;
+  stroke-linecap: round;
+}
+
+.om-wedge {
+  fill: transparent;
+  stroke: var(--om-wedge-line);
+  stroke-width: 1;
+  transition: fill calc(var(--om-anim) * 0.6) ease;
+}
+
+.om-wedge.is-hovered {
+  fill: var(--om-wedge-hover);
+}
+
+.om-no-wedges .om-wedge {
+  stroke: transparent;
+}
+
+/* ───────── needle ───────── */
+
+.om-needle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+
+.om-needle.is-visible {
+  opacity: 1;
+}
+
+.om-needle::before {
+  /* Bead on the hub rim pointing at the selection. */
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: calc(var(--om-hub-size) / -2 - 9px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--om-accent);
+  box-shadow: 0 0 12px var(--om-accent-glow);
+}
+
+.om-needle::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  bottom: calc(var(--om-hub-size) / 2 + 12px);
+  width: 2px;
+  height: max(0px, calc(var(--om-needle-len, 60px) - var(--om-hub-size) / 2 - 12px));
+  border-radius: 2px;
+  background: linear-gradient(to top, var(--om-accent-glow), transparent);
+}
+
+.om-level.is-parent .om-needle {
+  opacity: 0;
+}
+
+/* ───────── items ───────── */
+
+.om-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--om-item-size);
+  height: var(--om-item-size);
+  transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%));
+  transition:
+    transform var(--om-anim) var(--om-ease),
+    opacity var(--om-anim) ease,
+    scale calc(var(--om-anim) * 0.7) var(--om-ease);
+  z-index: 2;
+}
+
+.om-level.is-entering .om-item {
+  transform: translate(calc(var(--x) * 0.62 - 50%), calc(var(--y) * 0.62 - 50%));
+  opacity: 0.25;
+  scale: 0.75;
+  transition: none;
+}
+
+.om-level.is-parent .om-item {
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  scale: 0.3;
+}
+
+.om-disc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--om-disc-bg);
+  border: 1px solid var(--om-disc-border);
+  box-shadow: var(--om-shadow);
+  color: var(--om-icon);
+  transition:
+    background calc(var(--om-anim) * 0.6) ease,
+    border-color calc(var(--om-anim) * 0.6) ease,
+    box-shadow calc(var(--om-anim) * 0.6) ease;
+}
+
+.om-disc > svg,
+.om-disc > .om-icon-image,
+.om-disc > .om-icon-emoji,
+.om-disc > .om-icon-monogram {
+  width: 46%;
+  height: 46%;
+}
+
+.om-icon-image {
+  object-fit: contain;
+  width: 52% !important;
+  height: 52% !important;
+}
+
+.om-icon-emoji {
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--om-item-size) * 0.4);
+  line-height: 1;
+  font-family: 'Segoe UI Emoji', 'Segoe UI', sans-serif;
+}
+
+.om-icon-monogram {
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: calc(var(--om-item-size) * 0.28);
+  letter-spacing: 0.02em;
+}
+
+.om-item.is-hovered {
+  scale: 1.13;
+  z-index: 3;
+}
+
+.om-item.is-hovered .om-disc {
+  background: var(--om-disc-hover);
+  border-color: var(--om-accent);
+  box-shadow:
+    0 0 0 4px var(--om-accent-soft),
+    0 0 26px var(--om-accent-glow),
+    var(--om-shadow);
+}
+
+.om-item.is-chosen .om-disc {
+  animation: om-chosen 240ms ease-out;
+}
+
+@keyframes om-chosen {
+  0% {
+    box-shadow: 0 0 0 0 var(--om-accent-glow);
+  }
+  100% {
+    box-shadow: 0 0 0 18px transparent;
+  }
+}
+
+/* Small bead on the outer rim marks items that open a submenu. */
+.om-sub-mark {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+}
+
+.om-sub-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: var(--om-accent);
+  box-shadow: 0 0 0 2px var(--om-disc-bg);
+}
+
+.om-hint {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font: 650 10px/1 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
+  color: var(--om-text);
+  background: var(--om-label-bg);
+  border: 1px solid var(--om-disc-border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.om-label {
+  position: absolute;
+  max-width: 132px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--om-text);
+  background: var(--om-label-bg);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  transition: opacity calc(var(--om-anim) * 0.6) ease;
+}
+
+.om-item[data-side='bottom'] .om-label {
+  top: calc(100% + 7px);
+  left: 50%;
+  translate: -50% 0;
+}
+
+.om-item[data-side='top'] .om-label {
+  bottom: calc(100% + 7px);
+  left: 50%;
+  translate: -50% 0;
+}
+
+.om-item[data-side='left'] .om-label {
+  right: calc(100% + 8px);
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.om-item[data-side='right'] .om-label {
+  left: calc(100% + 8px);
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.om-labels-hover .om-item:not(.is-hovered) .om-label {
+  opacity: 0;
+}
+
+.om-item.is-hovered .om-label {
+  color: var(--om-text);
+  box-shadow:
+    0 0 0 1px var(--om-accent-soft),
+    0 3px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* Back item toward the parent ring. */
+.om-back {
+  width: calc(var(--om-item-size) * 0.66);
+  height: calc(var(--om-item-size) * 0.66);
+}
+
+.om-back .om-disc {
+  border-style: dashed;
+  color: var(--om-subtext);
+}
+
+.om-back .om-disc > svg {
+  width: 52%;
+  height: 52%;
+  transition: none;
+}
+
+/* ───────── hub ───────── */
+
+.om-hub {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--om-hub-size);
+  height: var(--om-hub-size);
+  translate: -50% -50%;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px;
+  box-sizing: border-box;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--om-accent) 14%, transparent), transparent 70%),
+    var(--om-hub-bg);
+  border: 1px solid var(--om-hub-border);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    var(--om-shadow);
+  z-index: 4;
+  transition:
+    scale var(--om-anim) var(--om-ease),
+    opacity var(--om-anim) ease;
+}
+
+.om-level.has-hover .om-hub {
+  border-color: color-mix(in srgb, var(--om-accent) 55%, transparent);
+}
+
+.om-hub-icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  color: var(--om-accent);
+  display: grid;
+  place-items: center;
+}
+
+.om-hub-icon > * {
+  width: 100%;
+  height: 100%;
+}
+
+.om-hub-icon .om-icon-emoji {
+  font-size: 19px;
+}
+
+.om-hub-title {
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.om-hub-sub {
+  max-width: 100%;
+  font-size: 9.5px;
+  line-height: 1.2;
+  color: var(--om-subtext);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.om-hub-sub.has-note {
+  color: var(--om-accent);
+  font-weight: 600;
+}
+
+.om-level.is-parent .om-hub {
+  scale: 0.36;
+  opacity: 0.82;
+}
+
+.om-level.is-parent .om-hub > :not(.om-hub-icon) {
+  opacity: 0;
+}
+
+.om-empty {
+  position: absolute;
+  left: 0;
+  top: calc(var(--om-hub-size) / 2 + 18px);
+  translate: -50% 0;
+  width: 220px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--om-subtext);
+  background: var(--om-label-bg);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om-root * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
