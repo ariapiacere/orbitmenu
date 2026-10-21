@@ -21,10 +21,14 @@ const tag = `v${version}`;
 const out = (cmd, args) => execFileSync(cmd, args, { cwd: root, encoding: 'utf8' }).trim();
 const run = (cmd, args) => {
   console.log(`\n> ${cmd} ${args.join(' ')}`);
-  // npm is a .cmd script on Windows and needs a shell; the arguments are fixed strings.
-  const r = spawnSync(cmd, args, { cwd: root, stdio: 'inherit', shell: cmd === 'npm' && process.platform === 'win32' });
+  // npm is a .cmd script on Windows. Run its JavaScript entry point with node
+  // instead of going through a shell (npm sets npm_execpath for `npm run`).
+  const [exe, argv] =
+    cmd === 'npm' && process.env.npm_execpath ? [process.execPath, [process.env.npm_execpath, ...args]] : [cmd, args];
+  const r = spawnSync(exe, argv, { cwd: root, stdio: 'inherit' });
   if (r.status !== 0) fail(`${cmd} ${args.join(' ')} failed.`);
 };
+if (!process.env.npm_execpath) fail('run this through npm: npm run release');
 function fail(message) {
   console.error(`\nRelease aborted: ${message}`);
   process.exit(1);

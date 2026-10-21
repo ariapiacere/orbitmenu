@@ -1,7 +1,7 @@
 {
   "name": "orbitmenu",
   "productName": "OrbitMenu",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A fast radial launcher for Windows: open a pie menu at the cursor and run apps, shortcuts, snippets and macros with clicks or gestures.",
   "main": "dist/main/index.js",
   "author": "OrbitMenu contributors",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- First release delivered through the in-app updater (tests the update path from 0.2.0).
+- Release script runs npm without a shell, removing Node's DEP0190 security warning.
+
 ## 0.2.0
 
 - **Updates from GitHub**: OrbitMenu checks for new releases at startup and every 6 hours, downloads and verifies them, and installs on restart (Settings → About & updates, or the tray menu). The private repository needs a read-only GitHub token, entered once per PC and stored encrypted.
