@@ -9,6 +9,7 @@ import { api } from '../api';
 import { ops, useEditor } from '../store';
 import { ActionEditor } from './ActionEditor';
 import { IconPicker } from './IconPicker';
+import { useImageDrop } from './useImageDrop';
 import { Button, Callout, cx, Field, Icon, ItemIcon, Issues, Slider, Switch, TextInput } from './ui';
 
 const LEAF_TYPES = new Set<ActionType>(['launch', 'open', 'url', 'hotkey', 'text', 'command', 'focus', 'macro']);
@@ -22,6 +23,7 @@ export function ItemInspector({ item, menu, siblings }: { item: MenuItem; menu: 
   const [testing, setTesting] = useState(false);
   const issues = validateItem(item, new Set(menus.map((m) => m.id)));
   const upd = (fn: (i: MenuItem) => MenuItem, key?: string) => ops.updateItem(item.id, fn, key);
+  const drop = useImageDrop((icon) => upd((i) => ({ ...i, icon })));
 
   const index = siblings.findIndex((s) => s.id === item.id);
   const autoAngle = Math.round(computeItemAngles(siblings, path.length ? 180 : null)[index] ?? 0);
@@ -52,13 +54,19 @@ export function ItemInspector({ item, menu, siblings }: { item: MenuItem; menu: 
 
   return (
     <div className="inspector">
-      <div className="inspector-head">
-        <button type="button" className="icon-button" title="Change icon" onClick={(e) => setIconAnchor(e.currentTarget)}>
+      <div className={cx('inspector-head', 'drop-zone', drop.over && 'is-drop-over')} {...drop.handlers}>
+        <button
+          type="button"
+          className={cx('icon-button', drop.over && 'is-drop-target', drop.busy && 'is-busy')}
+          title="Change icon — or drop an image here"
+          onClick={(e) => setIconAnchor(e.currentTarget)}
+        >
           <ItemIcon spec={item.icon} action={item.action} label={item.name} className="ui-icon" />
           <span className="edit-chip">
-            <Icon name="Pencil" />
+            <Icon name={drop.over ? 'ImageDown' : 'Pencil'} />
           </span>
         </button>
+        {drop.over && <div className="drop-hint">Drop to use as the icon</div>}
         <div className="stack" style={{ gap: 6 }}>
           <TextInput value={item.name} onChange={(name) => upd((i) => ({ ...i, name }), 'name')} placeholder="Name" aria-label="Item name" maxLength={120} />
           <TextInput value={item.description} onChange={(description) => upd((i) => ({ ...i, description }), 'description')} placeholder="Subtitle shown in the hub (optional)" aria-label="Description" maxLength={500} />

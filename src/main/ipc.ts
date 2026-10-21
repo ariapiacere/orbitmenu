@@ -57,6 +57,7 @@ export function registerIpc(app: OrbitApp): void {
   handleSettings(IPC.openLog, () => app.openLog());
   handleSettings(IPC.pickPath, (req: PickRequest) => app.pickPath(req));
   handleSettings(IPC.importIcon, () => app.importIcon());
+  handleSettings(IPC.importIconData, (bytes: unknown) => app.importIconData(bytes));
   handleSettings(IPC.resolveIcons, (paths: string[]) => app.resolveIconPaths(paths));
   handleSettings(IPC.testAction, (action: ActionConfig) => app.testAction(action));
   handleSettings(IPC.testMenu, (menuId: string) => app.openMenu(menuId, { source: 'editor' }));

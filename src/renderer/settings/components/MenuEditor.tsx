@@ -7,6 +7,7 @@ import { validateMenu } from '@shared/validation';
 import { api } from '../api';
 import { currentItems, ops, useEditor } from '../store';
 import { IconPicker } from './IconPicker';
+import { useImageDrop } from './useImageDrop';
 import { ItemInspector } from './ItemInspector';
 import { ItemList } from './ItemList';
 import { PreviewPane } from './PreviewPane';
@@ -48,6 +49,7 @@ export function MenuEditor({ menu }: { menu: MenuDefinition }) {
   const menuCount = useEditor((s) => s.config.menus.length);
   const items = useEditor((s) => currentItems(s));
   const [iconAnchor, setIconAnchor] = useState<HTMLElement | null>(null);
+  const menuDrop = useImageDrop((icon) => ops.updateMenu(menu.id, { icon }));
   const selected = items.find((i) => i.id === selectedId) ?? null;
   const validPath = childrenAtPath(menu, path) !== null;
   const issues = validateMenu(menu).filter((i) => i.field !== 'shortcut');
@@ -55,7 +57,14 @@ export function MenuEditor({ menu }: { menu: MenuDefinition }) {
   return (
     <div className="editor">
       <header className="editor-header">
-        <button type="button" className="icon-button" style={{ width: 46, height: 46 }} title="Menu icon" onClick={(e) => setIconAnchor(e.currentTarget)}>
+        <button
+          type="button"
+          className={`icon-button ${menuDrop.over ? 'is-drop-target' : ''}`}
+          style={{ width: 46, height: 46 }}
+          title="Menu icon — or drop an image here"
+          onClick={(e) => setIconAnchor(e.currentTarget)}
+          {...menuDrop.handlers}
+        >
           <ItemIcon spec={menu.icon} label={menu.name} className="ui-icon" />
         </button>
         {iconAnchor && <IconPicker anchor={iconAnchor} value={menu.icon} allowAuto={false} onChange={(icon) => ops.updateMenu(menu.id, { icon })} onClose={() => setIconAnchor(null)} />}

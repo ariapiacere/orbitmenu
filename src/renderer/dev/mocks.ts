@@ -81,6 +81,7 @@ export function installSettingsMock(): void {
       capabilities: { sendKeys: true, typeText: true, focusWindows: true, warpPointer: true, modifierPolling: true, restoreFocus: true },
     },
   });
+  const droppedIcons: Record<string, string> = {};
   let updateState: UpdateState = {
     status: 'idle',
     currentVersion: '0.2.0',
@@ -120,8 +121,14 @@ export function installSettingsMock(): void {
     openLog: async () => {},
     pickPath: async (req) =>
       req.kind === 'folder' ? 'C:\\Users\\you\\Projects' : req.kind === 'image' ? 'C:\\Users\\you\\Pictures\\icon.png' : 'C:\\Program Files\\Blender Foundation\\Blender 4.3\\blender.exe',
-    resolveIcons: async () => ({}),
+    resolveIcons: async (paths) => Object.fromEntries(paths.filter((p) => droppedIcons[p]).map((p) => [p, droppedIcons[p]!])),
     importIcon: async () => ({ path: 'icons/0123456789abcdef.png' }),
+    importIconData: async (bytes) => {
+      // Mirror the real store: remember the image so the preview can show it.
+      const ref = `icons/${bytes.length.toString(16).padStart(16, '0')}.png`;
+      droppedIcons[ref] = URL.createObjectURL(new Blob([bytes as BlobPart]));
+      return { path: ref };
+    },
     testAction: async () => ({ ok: true }),
     testMenu: async () => {},
     suspendHotkeys: async () => {},

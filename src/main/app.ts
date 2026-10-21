@@ -31,7 +31,7 @@ import { getPlatform, type Platform } from './platform';
 import { createActionEngine } from './actions/handlers';
 import { ActionEngine, CancelledError, sleep, type ActionContext } from './actions/engine';
 import { iconPathsOf, resolveIcons } from './icons';
-import { adoptIcon, adoptMenuIcons, exportIconFiles, importIconFiles } from './icon-store';
+import { adoptIcon, adoptIconData, adoptMenuIcons, exportIconFiles, importIconFiles } from './icon-store';
 import { assetPath } from './paths';
 import { Updater } from './updater';
 import pkg from '../../package.json';
@@ -265,6 +265,16 @@ export class OrbitApp {
     if (!picked) return {};
     try {
       return { path: adoptIcon(picked) };
+    } catch (err) {
+      return { error: (err as Error).message };
+    }
+  }
+
+  /** Stores image bytes dropped onto the editor (validated by content and size). */
+  importIconData(bytes: unknown): { path?: string; error?: string } {
+    if (!(bytes instanceof Uint8Array)) return { error: 'Nothing usable was dropped.' };
+    try {
+      return { path: adoptIconData(bytes) };
     } catch (err) {
       return { error: (err as Error).message };
     }

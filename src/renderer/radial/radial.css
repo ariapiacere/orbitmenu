@@ -297,6 +297,9 @@
 
 .om-icon-image {
   object-fit: contain;
+}
+
+.om-disc > .om-icon-image {
   width: 52% !important;
   height: 52% !important;
 }

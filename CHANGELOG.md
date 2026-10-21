@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+- **Drag and drop icons**: drop an image from Explorer (or a browser) onto an item's icon or name area, the menu icon, or the icon picker. It is copied into OrbitMenu's icon folder like a chosen file.
+- Image type is detected from the file's content, so files with a wrong or hidden extension (e.g. a WebP named `.svg`) work; non-images are rejected with a clear message.
+- Fixed image icons appearing tiny in the editor (icon circle, sidebar, breadcrumbs).
+- Dropping a file elsewhere in the settings window no longer tries to open it.
+
 ## 0.2.2
 
 - The repository is now public: updates work on every PC without a GitHub token.

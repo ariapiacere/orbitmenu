@@ -17,6 +17,7 @@ const bridge: SettingsBridge = {
   openLog: () => ipcRenderer.invoke(IPC.openLog),
   pickPath: (req) => ipcRenderer.invoke(IPC.pickPath, req),
   importIcon: () => ipcRenderer.invoke(IPC.importIcon),
+  importIconData: (bytes) => ipcRenderer.invoke(IPC.importIconData, bytes),
   resolveIcons: (paths) => ipcRenderer.invoke(IPC.resolveIcons, paths),
   testAction: (action) => ipcRenderer.invoke(IPC.testAction, action),
   testMenu: (menuId) => ipcRenderer.invoke(IPC.testMenu, menuId),

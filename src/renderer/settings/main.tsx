@@ -15,6 +15,18 @@ async function boot(): Promise<void> {
   window.addEventListener('beforeunload', () => {
     if (useEditor.getState().saveState === 'pending') void saveNow();
   });
+  // Files dropped outside a drop target would otherwise make the window navigate
+  // to them. Capture phase, so real drop targets can still accept the drop.
+  document.addEventListener(
+    'dragover',
+    (e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'none';
+    },
+    true,
+  );
+  document.addEventListener('drop', (e) => e.preventDefault(), true);
   createRoot(document.getElementById('app')!).render(<App />);
 }
 

@@ -87,7 +87,7 @@ OrbitMenu.exe --menu=<name>   open a menu by name or id — bind it to a mouse b
 
 Configuration lives in `%APPDATA%\OrbitMenu\settings.json` and `menus.json`; logs are in `%APPDATA%\OrbitMenu\logs`.
 
-Images you choose as icons are copied into OrbitMenu's own `icons` folder — `%LOCALAPPDATA%\OrbitMenu\icons` for the installed app (it survives updates), next to `OrbitMenu.exe` for the portable zip — so moving or deleting the original does not break a menu. Copies are named by content hash, so the same image is stored once. Exports include the icon files.
+Images you choose as icons — with *Choose image…* or by dragging a file onto an item's icon — are copied into OrbitMenu's own `icons` folder — `%LOCALAPPDATA%\OrbitMenu\icons` for the installed app (it survives updates), next to `OrbitMenu.exe` for the portable zip — so moving or deleting the original does not break a menu. Copies are named by content hash, so the same image is stored once. Exports include the icon files.
 
 OrbitMenu starts with Windows by default (tray menu → *Start with Windows*, or Settings → Behaviour).
 

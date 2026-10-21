@@ -1714,3 +1714,83 @@ kbd.key {
 .token-field[open] > summary::before {
   content: '▾';
 }
+
+/* Image drop targets */
+.drop-zone {
+  position: relative;
+  border-radius: 12px;
+  outline: 2px dashed transparent;
+  outline-offset: 6px;
+  transition: outline-color 0.12s ease, background 0.12s ease;
+}
+
+.drop-zone.is-drop-over {
+  outline-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.drop-hint {
+  position: absolute;
+  right: 8px;
+  bottom: -26px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.icon-button.is-drop-target {
+  border-style: solid;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  transform: scale(1.06);
+  transition: transform 0.12s ease;
+}
+
+.icon-button.is-busy {
+  opacity: 0.6;
+}
+
+.drop-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+.drop-box.is-drop-over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Icons rendered through ItemIcon sit in a .ui-icon box; fill it. */
+.ui-icon > .om-icon-image,
+.ui-icon > .om-icon-monogram {
+  width: 100%;
+  height: 100%;
+}
+
+.ui-icon > .om-icon-emoji {
+  font-size: 1em;
+  line-height: 1;
+}
+
+.icon-button > .ui-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 24px;
+}
+
+.nav-icon > .ui-icon {
+  font-size: 15px;
+}
+
+.crumb .ui-icon {
+  font-size: 13px;
+}

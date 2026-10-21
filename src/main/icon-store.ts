@@ -9,12 +9,13 @@
 // uses the folder next to OrbitMenu.exe; if that is not writable, or in
 // development, the per-user config folder is used.
 import { app } from 'electron';
-import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import type { IconSpec, MenuDefinition, MenuItem } from '@shared/types';
 import { expandEnv } from './actions/process';
 import { log } from './log';
+import { sniffImageType } from './icon-sniff';
 
 export const ICON_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico'];
 export const MAX_ICON_BYTES = 2 * 1024 * 1024;
@@ -60,18 +61,29 @@ export function storedIconFile(ref: string): string | null {
   return m ? join(iconStoreDir(), m[1]!.toLowerCase()) : null;
 }
 
-/** Copies an image into the store and returns its reference. Throws a readable error. */
+const UNSUPPORTED = 'This is not a supported image (PNG, JPG, SVG, ICO, WebP, GIF, BMP).';
+
+/** Copies an image file into the store and returns its reference. Throws a readable error. */
 export function adoptIcon(source: string): string {
   if (isStoredIcon(source)) return source.replace(/\\/g, '/');
   const path = expandEnv(source.trim().replace(/^"(.*)"$/, '$1'));
   if (!isAbsolute(path) || !existsSync(path)) throw new Error(`Image not found: ${path}`);
-  const ext = extname(path).toLowerCase();
-  if (!ICON_EXTENSIONS.includes(ext)) throw new Error(`${ext || 'This file type'} is not a supported image (PNG, JPG, SVG, ICO, WebP, GIF, BMP).`);
   if (statSync(path).size > MAX_ICON_BYTES) throw new Error('The image is larger than 2 MB.');
-  const data = readFileSync(path);
-  const name = `${createHash('sha1').update(data).digest('hex').slice(0, 16)}${ext === '.jpeg' ? '.jpg' : ext}`;
+  return adoptIconData(readFileSync(path));
+}
+
+/**
+ * Stores image bytes (from a file or a drag-and-drop) and returns the
+ * reference. The type comes from the content, not the file name.
+ */
+export function adoptIconData(data: Uint8Array): string {
+  if (data.length === 0) throw new Error('The image is empty.');
+  if (data.length > MAX_ICON_BYTES) throw new Error('The image is larger than 2 MB.');
+  const ext = sniffImageType(data);
+  if (!ext) throw new Error(UNSUPPORTED);
+  const name = `${createHash('sha1').update(data).digest('hex').slice(0, 16)}${ext}`;
   const target = join(iconStoreDir(), name);
-  if (!existsSync(target)) copyFileSync(path, target);
+  if (!existsSync(target)) writeFileSync(target, data);
   return `icons/${name}`;
 }
 

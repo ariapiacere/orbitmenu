@@ -26,6 +26,7 @@ export const IPC = {
   cfgOpenFolder: 'cfg:open-folder',
   pickPath: 'dlg:pick',
   importIcon: 'icons:import',
+  importIconData: 'icons:import-data',
   resolveIcons: 'icons:resolve',
   testAction: 'action:test',
   testMenu: 'menu:test',
@@ -199,6 +200,8 @@ export interface SettingsBridge {
   pickPath(req: PickRequest): Promise<string | null>;
   /** Picks an image and copies it into OrbitMenu's icon folder. */
   importIcon(): Promise<{ path?: string; error?: string }>;
+  /** Stores dropped image bytes in OrbitMenu's icon folder. */
+  importIconData(bytes: Uint8Array): Promise<{ path?: string; error?: string }>;
   resolveIcons(paths: string[]): Promise<Record<string, string>>;
   testAction(action: ActionConfig): Promise<ActionTestResult>;
   testMenu(menuId: string): Promise<void>;

@@ -192,6 +192,23 @@ async function main(): Promise<void> {
     return `${ref} in ${iconStoreDir()}`;
   });
 
+  await check('icon store: type comes from content, not the file name', async () => {
+    // A PNG saved as .svg (like a WebP shown as .svg when Explorer hides extensions).
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+    const misnamed = join(dir, 'Blender_logo_no_text.svg');
+    writeFileSync(misnamed, png);
+    const ref = adoptIcon(misnamed);
+    if (!ref.endsWith('.png')) throw new Error(`stored as ${ref}`);
+    const exe = join(dir, 'not-an-image.png');
+    writeFileSync(exe, Buffer.from('MZ fake program'));
+    try {
+      adoptIcon(exe);
+    } catch {
+      return `${ref}; non-images rejected`;
+    }
+    throw new Error('a non-image was accepted');
+  });
+
   await check('icon store: identical images are stored once', async () => {
     const a = join(dir, 'a.png');
     const b = join(dir, 'b.png');

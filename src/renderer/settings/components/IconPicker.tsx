@@ -4,7 +4,8 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { IconSpec } from '@shared/types';
 import { LUCIDE_NAMES, lucideSvg } from '../../common/icons';
 import { api } from '../api';
-import { Button, cx, Popover, Segmented, TextInput } from './ui';
+import { useImageDrop } from './useImageDrop';
+import { Button, cx, Icon, Popover, Segmented, TextInput } from './ui';
 
 const EMOJI = [
   '🚀', '⭐', '🔥', '⚡', '✨', '🎯', '💡', '🧠', '📁', '📂', '📄', '📝', '📋', '📌', '📎', '🔗',
@@ -30,6 +31,7 @@ export function IconPicker({ anchor, value, onChange, onClose, allowAuto }: { an
   const [query, setQuery] = useState('');
   const [customEmoji, setCustomEmoji] = useState(value.kind === 'emoji' ? value.value : '');
   const [importError, setImportError] = useState('');
+  const drop = useImageDrop((icon) => pick(icon));
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/[\s-]+/g, '');
@@ -89,10 +91,14 @@ export function IconPicker({ anchor, value, onChange, onClose, allowAuto }: { an
         {tab === 'image' && (
           <div className="stack">
             <p className="field-hint" style={{ margin: 0 }}>
-              PNG, JPG, SVG, ICO or WebP up to 2 MB. OrbitMenu keeps its own copy in its icon folder, so the original can be moved or deleted.
+              PNG, JPG, SVG, ICO, WebP, GIF or BMP up to 2 MB — choose a file, or drag one onto the icon. OrbitMenu keeps its own copy, so the original can be moved or deleted.
             </p>
             {value.kind === 'image' && <code className="chip">{value.path}</code>}
             {importError && <span className="field-hint" style={{ color: 'var(--danger)' }}>{importError}</span>}
+            <div className={cx('drop-box', drop.over && 'is-drop-over')} {...drop.handlers}>
+              <Icon name="ImageDown" size={22} />
+              <span>{drop.busy ? 'Copying…' : 'Drop an image here'}</span>
+            </div>
             <Button
               icon="FolderOpen"
               onClick={async () => {
