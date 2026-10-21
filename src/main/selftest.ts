@@ -214,8 +214,8 @@ async function main(): Promise<void> {
   });
 
   await check('updates: download and verify the latest GitHub release', async () => {
-    const token = process.env.ORBIT_TEST_GITHUB_TOKEN;
-    if (!token) skip('set ORBIT_TEST_GITHUB_TOKEN to test against the private repository');
+    // The repository is public; a token is only needed for private forks.
+    const token = process.env.ORBIT_TEST_GITHUB_TOKEN || undefined;
     const updater = new Updater({
       repository: process.env.ORBIT_TEST_REPOSITORY ?? 'ariapiacere/orbitmenu',
       tokenFile: join(dir, 'token.bin'),

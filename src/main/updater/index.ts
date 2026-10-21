@@ -1,14 +1,14 @@
 // In-app updates from GitHub Releases.
 //
 //   check     GET /repos/<repo>/releases/latest; newer tag → "available".
-//   download  OrbitMenu downloads RELEASES and the full .nupkg itself (with the
-//             access token for private repositories), verifies size and SHA-1,
+//   download  OrbitMenu downloads RELEASES and the full .nupkg itself (with an
+//             optional access token, e.g. for private forks), verifies size and SHA-1,
 //             then hands the local folder to Squirrel (Electron's autoUpdater),
 //             which installs the new version next to the running one.
 //   install   autoUpdater.quitAndInstall() restarts into the new version.
 //
-// Squirrel cannot send an Authorization header, which is why the download is
-// done here rather than by pointing Squirrel at GitHub directly.
+// Doing the download here (instead of pointing Squirrel at GitHub) keeps
+// token support for private forks and lets us verify and report progress.
 import { app, autoUpdater } from 'electron';
 import { EventEmitter } from 'node:events';
 import { createHash } from 'node:crypto';
@@ -114,11 +114,15 @@ export class Updater extends EventEmitter {
   private describeHttpError(status: number, what: string): string {
     const hasToken = this.tokens.has();
     if (status === 401) return 'GitHub rejected the access token (expired or revoked). Enter a new one.';
-    if (status === 403) return 'GitHub refused the request (rate limit or missing permission). Try again later.';
+    if (status === 403 || status === 429) {
+      return hasToken
+        ? 'GitHub refused the request (rate limit or missing permission). Try again later.'
+        : 'GitHub limits anonymous update checks per network. Try again later, or add an access token under About & updates.';
+    }
     if (status === 404) {
       return hasToken
         ? `${what} was not found. The token may not have access to ${this.opts.repository}, or nothing has been released yet.`
-        : `${this.opts.repository} is private: add a GitHub access token to receive updates.`;
+        : `${what} was not found on ${this.opts.repository}. Nothing has been released yet, or the repository is private and needs an access token.`;
     }
     return `GitHub answered ${status} while fetching ${what}.`;
   }

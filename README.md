@@ -22,7 +22,11 @@ OrbitMenu is an independent implementation inspired by the interaction design of
 - **Themes**: Nebula, Daylight, Graphite, custom accent, size and radii, animation speed.
 - **Robust config**: JSON files validated on load, atomic writes with backups, damaged files set aside instead of overwritten, hand edits picked up live, import/export.
 
-## Getting started
+## Install
+
+Download **[OrbitMenu-Setup.exe](https://github.com/ariapiacere/orbitmenu/releases/latest/download/OrbitMenu-Setup.exe)** from the [latest release](https://github.com/ariapiacere/orbitmenu/releases/latest) and run it. It installs for your Windows user (no administrator rights), starts in the tray, and keeps itself up to date. The installer is not code-signed, so SmartScreen may ask you to confirm (*More info → Run anyway*). A portable zip is attached to each release as well.
+
+## Building from source
 
 Requirements: Windows 10/11 x64 (arm64 builds also work), Node.js 22+ for development.
 
@@ -89,11 +93,11 @@ OrbitMenu starts with Windows by default (tray menu → *Start with Windows*, or
 
 ## Updates
 
-Installed copies (from `OrbitMenu-Setup.exe`) update themselves from the GitHub Releases of `ariapiacere/orbitmenu`:
+Installed copies (from `OrbitMenu-Setup.exe`) update themselves from the [GitHub Releases](https://github.com/ariapiacere/orbitmenu/releases) of `ariapiacere/orbitmenu`:
 
 - At startup and every 6 hours OrbitMenu checks the latest release. When a newer one exists you get a notification, a tray entry and a banner in **Settings → About & updates**.
 - **Download and install** fetches the package, verifies its size and SHA-1 against the release's `RELEASES` file, and lets Squirrel install it next to the running version. **Restart and update** (also in the tray) switches over. Turn on *Download automatically* to skip the first click.
-- The repository is private, so each PC needs a read-only token once: on GitHub create a *fine-grained personal access token* with access to only this repository and **Contents: Read-only**, then paste it under *GitHub access token*. It is encrypted with Windows DPAPI for the current user and kept out of exports.
+- No account or token is needed: the repository is public. A GitHub access token is optional (*About & updates → GitHub access token*), useful only if GitHub limits anonymous requests on a shared network or you publish from a private fork; it is encrypted with Windows DPAPI for the current user and kept out of exports.
 - The portable zip cannot update itself; the update banner links to the release page instead.
 
 ### Publishing a release

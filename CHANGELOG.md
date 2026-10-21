@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- The repository is now public: updates work on every PC without a GitHub token.
+- The access-token field under About & updates is optional and folded away; messages explain rate limits instead of asking for a token.
+- README: direct download link for the installer.
+
 ## 0.2.1
 
 - First release delivered through the in-app updater (tests the update path from 0.2.0).

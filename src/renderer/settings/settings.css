@@ -1684,3 +1684,33 @@ kbd.key {
   box-shadow: 0 0 0 3px var(--accent-soft);
   flex: none;
 }
+
+.token-field > summary {
+  cursor: pointer;
+  list-style: none;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.token-field > summary > .badge,
+.token-field > summary > span:last-child {
+  margin-left: auto;
+}
+
+.token-field > summary > span:first-child {
+  margin-left: 0;
+}
+
+.token-field > summary::-webkit-details-marker {
+  display: none;
+}
+
+.token-field > summary::before {
+  content: '▸';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.token-field[open] > summary::before {
+  content: '▾';
+}

@@ -58,20 +58,21 @@ function TokenField({ u }: { u: UpdateState }) {
       setSaving(false);
     }
   };
+  // Not needed for the public repository, so it stays folded away unless a
+  // token is saved or the last check failed.
   return (
-    <div className="stack" style={{ gap: 8 }}>
-      <div className="field-label">
-        <span>GitHub access token</span>
+    <details className="token-field" open={u.hasToken || u.status === 'error'}>
+      <summary className="field-label">
+        <span>GitHub access token (optional)</span>
         {u.hasToken ? (
           <Badge kind="ok" icon="KeyRound">
             Saved
           </Badge>
         ) : (
-          <Badge kind="warn" icon="KeyRound">
-            Not set
-          </Badge>
+          <Badge icon="KeyRound">Not needed</Badge>
         )}
-      </div>
+      </summary>
+      <div className="stack" style={{ gap: 8, marginTop: 8 }}>
       <div className="input-row">
         <input
           className="input mono"
@@ -96,14 +97,16 @@ function TokenField({ u }: { u: UpdateState }) {
         </span>
       )}
       <span className="field-hint">
-        {u.repository} is private, so each PC needs a read-only token once. On GitHub create a{' '}
+        Updates come from the public repository {u.repository}, so no token is needed. Add one only if GitHub limits anonymous requests on
+        a shared network, or if you build from a private fork: create a{' '}
         <button className="link" type="button" onClick={() => void api().openExternal('https://github.com/settings/personal-access-tokens/new')}>
           fine-grained token
         </button>{' '}
-        → Repository access: only <code>{u.repository.split('/')[1]}</code> → Permissions: <code>Contents: Read-only</code>. It is stored
-        encrypted for this Windows account and never included in exports.
+        with read-only <code>Contents</code> access to that repository. It is stored encrypted for this Windows account and never
+        included in exports.
       </span>
-    </div>
+      </div>
+    </details>
   );
 }
 

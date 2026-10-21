@@ -60,7 +60,7 @@ Implement `Platform` (`src/main/platform/types.ts`) for the new OS and select it
 
 ## Updates
 
-`src/main/updater/` checks `GET /repos/<repo>/releases/latest` (with the user's encrypted token for the private repository), compares versions, and on request downloads `RELEASES` and the full `.nupkg` through the GitHub API (the redirect to signed storage drops the Authorization header). The package is verified against the SHA-1 and size in `RELEASES`, then Electron's `autoUpdater` (Squirrel.Windows) is pointed at the local folder and installs it beside the running version; `quitAndInstall` restarts into it. Squirrel cannot authenticate to GitHub itself, which is why the download happens in the app. Pure parsing and version logic live in `releases.ts` and are unit-tested; `npm run selftest` downloads and verifies the real latest release when `ORBIT_TEST_GITHUB_TOKEN` is set.
+`src/main/updater/` checks `GET /repos/<repo>/releases/latest` (anonymously for the public repository; with the user's encrypted token if one is set, e.g. for a private fork), compares versions, and on request downloads `RELEASES` and the full `.nupkg` through the GitHub API (the redirect to signed storage drops the Authorization header). The package is verified against the SHA-1 and size in `RELEASES`, then Electron's `autoUpdater` (Squirrel.Windows) is pointed at the local folder and installs it beside the running version; `quitAndInstall` restarts into it. Squirrel cannot authenticate to GitHub itself, which is why the download happens in the app. Pure parsing and version logic live in `releases.ts` and are unit-tested; `npm run selftest` downloads and verifies the real latest release (anonymously, or with `ORBIT_TEST_GITHUB_TOKEN` if set).
 
 ## Icons
 
