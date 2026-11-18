@@ -29,9 +29,9 @@ src/
 
 1. `HotkeyManager` registers each menu's accelerator with `globalShortcut` and reports per-menu status (`ok`, `conflict`, `duplicate`, `invalid`, …).
 2. On trigger, `OrbitApp.openMenu` records the foreground window (`GetForegroundWindow`), decides whether turbo is possible (a shortcut modifier is still held), and calls `MenuWindow.show`.
-3. `MenuWindow` keeps one transparent, frameless, always-on-top `toolbar` window alive but hidden. Showing costs a resize to the display under the pointer (set twice to work around mixed-DPI sizing) and one IPC message. The window covers the display so strokes can go anywhere, and is **hidden** (not just made transparent) whenever a menu closes.
+3. `MenuWindow` keeps one transparent, frameless, always-on-top `toolbar` window alive. Between menus it is **parked**: moved beyond the edge of all displays, made click-through and emptied, but kept shown — hiding and re-showing a transparent full-screen window costs Chromium and the Windows compositor about 100 ms (measured: 152 ms vs 35 ms from key press to pixels). Opening sends the menu to the renderer, moves the window over the display under the pointer and focuses it. A parked window cannot intercept input (off-screen, click-through, and it re-parks itself if Windows moves it); `CalculateNativeWinOcclusion` is disabled so Chromium keeps its compositor running while parked. *Settings → Behaviour → Keep the menu ready* switches back to really hiding the window.
 4. While visible, a 15 ms poller (`GetAsyncKeyState`) watches the shortcut's modifiers (turbo release) and its main key (to tell auto-repeat from a deliberate second press, which toggles the menu closed). `Escape` is registered globally as a failsafe that works even if the renderer hangs.
-5. Before hiding, the overlay clears its DOM and acknowledges, so the next show never flashes a stale frame.
+5. Closing parks the window first (it disappears immediately), hands keyboard focus back to the window that was active before, then empties the DOM. At start-up and every few minutes the first menu is rendered once while parked, so fonts, icons and GPU shaders are warm for the first key press. The first ring is drawn fully opaque on its first frame — a fade-in reads as input lag.
 
 ## Layout and navigation
 
@@ -65,3 +65,7 @@ Implement `Platform` (`src/main/platform/types.ts`) for the new OS and select it
 ## Icons
 
 `src/main/icon-store.ts` copies user-chosen icon images into `<install root>\icons` (Squirrel root, which survives updates; next to the exe for portable copies; the profile folder in development) under content-hash names and stores `icons/<hash>.<ext>` references. Older absolute image paths are migrated on load; exports embed the referenced files as base64 and imports restore them after checking the hash.
+
+## Measuring latency
+
+`npm run latency` starts a test copy of the app with a throw-away profile, presses F24 (a key no keyboard has) through `SendInput` and polls a screen pixel where the hub will appear, so it reports true key-to-pixels time including Windows' hotkey dispatch, Chromium's compositor and the desktop compositor. It also asserts the overlay's safety properties between menus (off-screen, click-through, not focused, not in Alt+Tab) and that focus returns to the previous window. `ORBIT_OVERLAY=hide` runs the same test against the fallback mode; `--timer` lets the app open itself instead of pressing a key.

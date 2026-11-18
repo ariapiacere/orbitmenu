@@ -141,6 +141,11 @@ export interface GeneralSettings {
   /** How long a pasted snippet stays on the clipboard before it is restored. */
   clipboardRestoreDelayMs: number;
   firstRunDone: boolean;
+  /**
+   * Keep the menu overlay loaded off-screen between menus so it appears about
+   * 0.1 s sooner. Off = hide it completely between menus (the fallback).
+   */
+  keepOverlayReady: boolean;
   /** Look for new releases on GitHub at startup and every few hours. */
   autoCheckUpdates: boolean;
   /** Download (but not install) new releases as soon as they are found. */

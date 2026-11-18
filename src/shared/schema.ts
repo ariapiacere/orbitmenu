@@ -146,7 +146,7 @@ const AppearanceSchema = z.object({
   showLabels: z.enum(['always', 'hover']).catch('always'),
   showWedges: bool(true),
   showTrail: bool(true),
-  animationMs: num(0, 600, 110),
+  animationMs: num(0, 600, 90),
 });
 
 const NavigationSchema = z.object({
@@ -175,6 +175,7 @@ const GeneralSchema = z.object({
   focusDelayMs: num(0, 1000, 60),
   clipboardRestoreDelayMs: num(50, 5000, 400),
   firstRunDone: bool(false),
+  keepOverlayReady: bool(true),
   autoCheckUpdates: bool(true),
   autoDownloadUpdates: bool(false),
 });

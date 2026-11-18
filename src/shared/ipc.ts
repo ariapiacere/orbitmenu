@@ -87,6 +87,8 @@ export interface MenuShowPayload {
   /** When switching menus: keep the menu at this centre instead of the cursor. */
   center: Vec2 | null;
   canWarpPointer: boolean;
+  /** Render invisibly to warm caches; the overlay is off-screen and must not react to input. */
+  prewarm?: boolean;
 }
 
 export interface MenuSelectRequest {

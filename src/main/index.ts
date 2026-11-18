@@ -24,6 +24,10 @@ interface InstanceMessage {
   menu?: string;
 }
 
+// Development: ORBIT_USER_DATA runs the app with a separate profile (its own
+// config, log and single-instance lock), so tests never touch the real one.
+if (process.env.ORBIT_USER_DATA && !app.isPackaged) app.setPath('userData', process.env.ORBIT_USER_DATA);
+
 // Uninstalling: remove the "start with Windows" entry before Squirrel deletes
 // the app, otherwise Windows keeps a dead startup item.
 if (process.platform === 'win32' && process.argv.includes('--squirrel-uninstall')) {
@@ -46,6 +50,10 @@ if (process.platform === 'win32' && require('electron-squirrel-startup')) {
   app.setAppUserModelId('com.orbitmenu.app');
   // Keep the hidden overlay's renderer at full speed so it opens instantly.
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  // The overlay waits off-screen between menus. Chromium's occlusion tracker
+  // would treat that as hidden and stop its compositor, which is exactly the
+  // start-up cost parking avoids.
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 
   let orbit: OrbitApp | null = null;
 

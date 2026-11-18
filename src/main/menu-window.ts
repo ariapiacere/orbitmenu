@@ -1,14 +1,28 @@
-// The overlay: one transparent, frameless, always-on-top window that is
-// created at startup and kept hidden, so opening a menu costs only a resize
-// and an IPC message. While visible it covers the display under the pointer
-// so strokes can go anywhere; when a menu closes the window is hidden (never
-// just made transparent), so nothing is left intercepting clicks.
+// The overlay: one transparent, frameless, always-on-top window, created at
+// startup. While a menu is open it covers the display under the pointer so
+// strokes can go anywhere.
+//
+// Between menus the window is "parked" (the default): moved beyond the edge of
+// all displays, made click-through and emptied — but kept shown. Hiding and
+// re-showing a transparent full-screen window costs Chromium and the Windows
+// compositor several frames; a parked window only has to be moved back, which
+// `npm run latency` measured as roughly 100 ms faster per open. A parked
+// window cannot intercept input: it is off-screen, it is click-through in case
+// Windows ever moves it back (monitor changes, remote sessions), and it
+// re-parks itself whenever it is moved.
+//
+// "hide" mode is the classic behaviour (really hide the window between menus),
+// kept as a fallback that users can select in the settings.
 import { app, BrowserWindow, screen } from 'electron';
 import type { Rect, Vec2 } from '@shared/types';
 import { IPC, type MenuShowPayload } from '@shared/ipc';
 import { preloadPath, rendererEntry } from './paths';
 import { log } from './log';
 import type { Platform } from './platform';
+
+export type OverlayMode = 'park' | 'hide';
+
+const sameRect = (a: Rect, b: Rect) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 
 export class MenuWindow {
   private win: BrowserWindow | null = null;
@@ -17,12 +31,27 @@ export class MenuWindow {
   private clearWaiter: (() => void) | null = null;
   private visible = false;
   private shownAt = 0;
-  private warmed = false;
+  private warmTimer: NodeJS.Timeout | null = null;
+  private mode: OverlayMode = 'park';
+  private clickThrough = false;
+  /** Guards against reacting to our own setBounds while parking. */
+  private parking = false;
+  /** Size of the display the overlay last covered; parking keeps it so re-opening is a pure move. */
+  private lastSize: { width: number; height: number } | null = null;
+  /** Supplies a payload to render invisibly so fonts, icons and shaders are warm. */
+  warmPayload: (() => Omit<MenuShowPayload, 'cursor' | 'workArea'> | null) | null = null;
 
   constructor(
     private readonly platform: Platform,
     private readonly handlers: { onBlur: () => void; onCrash: () => void },
-  ) {}
+  ) {
+    const repark = () => {
+      if (!this.visible) this.park();
+    };
+    screen.on('display-added', repark);
+    screen.on('display-removed', repark);
+    screen.on('display-metrics-changed', repark);
+  }
 
   get isVisible(): boolean {
     return this.visible;
@@ -36,10 +65,30 @@ export class MenuWindow {
     return Date.now() - this.shownAt;
   }
 
+  /** Development override: ORBIT_OVERLAY=hide|park wins over the setting. */
+  private static forcedMode(): OverlayMode | null {
+    const v = app.isPackaged ? undefined : process.env.ORBIT_OVERLAY;
+    return v === 'hide' || v === 'park' ? v : null;
+  }
+
+  setMode(mode: OverlayMode): void {
+    const next = MenuWindow.forcedMode() ?? mode;
+    if (next === this.mode) return;
+    this.mode = next;
+    const win = this.win;
+    if (!win || win.isDestroyed() || this.visible) return;
+    if (next === 'park') {
+      this.park();
+    } else {
+      win.hide();
+      this.setClickThrough(false);
+    }
+  }
+
   create(): void {
     if (this.win && !this.win.isDestroyed()) return;
     this.loaded = false;
-    this.warmed = false;
+    this.clickThrough = false;
     const win = new BrowserWindow({
       show: false,
       frame: false,
@@ -76,6 +125,11 @@ export class MenuWindow {
     win.on('blur', () => {
       if (this.visible) this.handlers.onBlur();
     });
+    // If anything moves the parked overlay (Windows does this when monitors
+    // change), put it straight back.
+    win.on('move', () => {
+      if (!this.visible && !this.parking) this.park();
+    });
     win.webContents.on('render-process-gone', (_e, details) => {
       log.error('Menu renderer crashed:', details.reason);
       this.forceHide();
@@ -99,37 +153,88 @@ export class MenuWindow {
   markReady(): void {
     this.loaded = true;
     for (const w of this.loadWaiters.splice(0)) w();
-    if (!this.warmed) void this.prewarm();
-  }
-
-  /**
-   * The very first show of a transparent window is slow (Chromium and DWM set
-   * up its surfaces). Do that once at startup, invisible and click-through, so
-   * the first real shortcut press is as fast as every later one.
-   */
-  private async prewarm(): Promise<void> {
-    const win = this.win;
-    if (!win || win.isDestroyed() || this.visible) return;
-    this.warmed = true;
-    const t = performance.now();
-    try {
-      win.setOpacity(0);
-      win.setIgnoreMouseEvents(true);
-      win.showInactive();
-      await new Promise((r) => setTimeout(r, 150));
-    } finally {
-      if (!win.isDestroyed()) {
-        if (!this.visible) win.hide();
-        win.setIgnoreMouseEvents(false);
-        win.setOpacity(1);
-      }
-    }
-    log.debug(`overlay pre-warmed in ${(performance.now() - t).toFixed(0)} ms`);
+    this.prewarm();
   }
 
   markCleared(): void {
     this.clearWaiter?.();
     this.clearWaiter = null;
+  }
+
+  /** Toggles click-through, skipping the (window-style changing) call when nothing changes. */
+  private setClickThrough(on: boolean): void {
+    if (on === this.clickThrough || !this.win || this.win.isDestroyed()) return;
+    this.clickThrough = on;
+    this.win.setIgnoreMouseEvents(on);
+  }
+
+  /** Off-screen home of the parked overlay: to the right of every display. */
+  private parkBounds(): Rect {
+    const displays = screen.getAllDisplays();
+    const right = Math.max(...displays.map((d) => d.bounds.x + d.bounds.width));
+    const top = Math.min(...displays.map((d) => d.bounds.y));
+    const size = this.lastSize ?? screen.getPrimaryDisplay().bounds;
+    return { x: right + 400, y: top, width: size.width, height: size.height };
+  }
+
+  /** Moves the overlay off-screen and makes it click-through; it stays shown. */
+  private park(): void {
+    const win = this.win;
+    if (!win || win.isDestroyed() || this.mode !== 'park') return;
+    this.setClickThrough(true);
+    const target = this.parkBounds();
+    if (!sameRect(win.getBounds(), target)) {
+      this.parking = true;
+      try {
+        win.setBounds(target);
+      } finally {
+        this.parking = false;
+      }
+    }
+    if (win.isMinimized()) win.restore();
+    if (!win.isVisible()) win.showInactive();
+  }
+
+  /**
+   * Renders a real menu once while the overlay is invisible, so the first
+   * shortcut press does not pay for font loading, icon building and GPU
+   * shader compilation. Repeated every few minutes to keep that memory
+   * resident on machines under memory pressure.
+   */
+  prewarm(): void {
+    const win = this.win;
+    if (!win || win.isDestroyed() || !this.loaded || this.visible) return;
+    if (this.mode === 'park') {
+      this.park();
+    } else {
+      win.setOpacity(0);
+      this.setClickThrough(true);
+      win.showInactive();
+    }
+    const payload = this.warmPayload?.();
+    if (payload) {
+      const { width, height } = win.getBounds();
+      win.webContents.send(IPC.menuShow, {
+        ...payload,
+        prewarm: true,
+        cursor: { x: width / 2, y: height / 2 },
+        workArea: { x: 0, y: 0, width, height },
+      } satisfies MenuShowPayload);
+    }
+    setTimeout(() => {
+      // A real menu may have opened in the meantime; leave it alone.
+      if (this.visible || !this.win || this.win.isDestroyed()) return;
+      this.win.webContents.send(IPC.menuClear);
+      if (this.mode === 'hide') {
+        this.win.hide();
+        this.setClickThrough(false);
+        this.win.setOpacity(1);
+      }
+    }, 400);
+    if (!this.warmTimer) {
+      this.warmTimer = setInterval(() => this.prewarm(), 4 * 60_000);
+      this.warmTimer.unref?.();
+    }
   }
 
   private waitUntilLoaded(timeoutMs = 4000): Promise<void> {
@@ -159,30 +264,27 @@ export class MenuWindow {
     const t0 = performance.now();
     this.create();
     await this.waitUntilLoaded();
-    const tLoaded = performance.now();
     const win = this.win!;
     const { bounds, workArea } = MenuWindow.layoutFor(screenPoint);
     const cursor = { x: screenPoint.x - bounds.x, y: screenPoint.y - bounds.y };
-    const current = win.getBounds();
-    if (current.x !== bounds.x || current.y !== bounds.y || current.width !== bounds.width || current.height !== bounds.height) {
-      // Setting the bounds twice works around Electron sizing a window with the
-      // previous display's scale factor when it moves between mixed-DPI monitors.
-      win.setBounds(bounds);
-      win.setBounds(bounds);
-    }
-    const tBounds = performance.now();
+    // Content first: the renderer starts building the menu while the window moves.
     win.webContents.send(IPC.menuShow, { ...payload, cursor, workArea } satisfies MenuShowPayload);
     this.visible = true;
     this.shownAt = Date.now();
-    win.show();
-    const tShow = performance.now();
+    this.lastSize = { width: bounds.width, height: bounds.height };
+    this.setClickThrough(false);
+    if (!sameRect(win.getBounds(), bounds)) {
+      win.setBounds(bounds);
+      // Electron can size a window with the previous display's scale factor when
+      // it moves between mixed-DPI monitors; a second call corrects that.
+      if (!sameRect(win.getBounds(), bounds)) win.setBounds(bounds);
+    }
+    const tBounds = performance.now();
+    if (win.isMinimized()) win.restore();
+    if (!win.isVisible()) win.show();
     win.moveTop();
     win.focus();
-    log.debug(
-      `overlay show: load ${(tLoaded - t0).toFixed(1)} ms, bounds ${(tBounds - tLoaded).toFixed(1)} ms, show ${(tShow - tBounds).toFixed(1)} ms, focus ${(performance.now() - tShow).toFixed(1)} ms`,
-    );
-    const actual = win.getBounds();
-    if (actual.width !== bounds.width || actual.height !== bounds.height || actual.x !== bounds.x) win.setBounds(bounds);
+    log.debug(`overlay show (${this.mode}): bounds ${(tBounds - t0).toFixed(1)} ms, show+focus ${(performance.now() - tBounds).toFixed(1)} ms`);
     // The hotkey recipient may take the foreground, but if Windows still
     // refused, attach to the foreground thread and try again.
     if (!win.isFocused()) {
@@ -227,31 +329,55 @@ export class MenuWindow {
   }
 
   /**
-   * Hides the overlay. The renderer first drops its content so that the next
-   * show does not flash the previous menu for a frame.
+   * Takes the overlay off the screen and gives keyboard focus back to
+   * `focusTarget` (the window that was active before the menu opened), or
+   * leaves focus alone with 'keep' (the user already moved to another window).
+   *
+   * Parked mode is immediate: the window leaves the screen first and is
+   * emptied afterwards. Hide mode empties it first so the next show does not
+   * flash the previous menu, then hides it.
    */
-  async hide(): Promise<void> {
-    if (!this.visible || !this.win) return;
+  async hide(focusTarget: number | null | 'keep' = null): Promise<void> {
+    const win = this.win;
+    if (!this.visible || !win || win.isDestroyed()) return;
     this.visible = false;
+    if (this.mode === 'park') {
+      this.park();
+      win.webContents.send(IPC.menuClear);
+      // A parked window keeps keyboard focus unless it is handed on explicitly.
+      if (focusTarget === 'keep') return;
+      if (focusTarget && this.platform.isWindow(focusTarget)) this.platform.bringToForeground(focusTarget);
+      else win.blur();
+      return;
+    }
     await new Promise<void>((resolve) => {
       const t = setTimeout(resolve, 120);
       this.clearWaiter = () => {
         clearTimeout(t);
         resolve();
       };
-      this.win!.webContents.send(IPC.menuClear);
+      win.webContents.send(IPC.menuClear);
     });
-    this.win?.hide();
+    if (!win.isDestroyed()) win.hide();
+    if (focusTarget && focusTarget !== 'keep' && this.platform.isWindow(focusTarget) && this.platform.getForegroundWindow() !== focusTarget) {
+      this.platform.bringToForeground(focusTarget);
+    }
   }
 
+  /** Emergency exit (renderer hung or crashed): get off the screen without its cooperation. */
   forceHide(): void {
     this.visible = false;
     this.clearWaiter?.();
     this.clearWaiter = null;
-    if (this.win && !this.win.isDestroyed()) this.win.hide();
+    const win = this.win;
+    if (!win || win.isDestroyed()) return;
+    this.setClickThrough(true);
+    win.hide();
   }
 
   destroy(): void {
+    if (this.warmTimer) clearInterval(this.warmTimer);
+    this.warmTimer = null;
     this.win?.destroy();
     this.win = null;
   }

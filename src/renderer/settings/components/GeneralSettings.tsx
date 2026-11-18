@@ -155,6 +155,12 @@ function Behaviour() {
       </h2>
       <p>Startup and timing of actions that type into other apps.</p>
       <div className="settings-grid">
+        <Switch
+          checked={g.keepOverlayReady}
+          onChange={(keepOverlayReady) => set({ keepOverlayReady })}
+          label="Keep the menu ready for instant opening"
+          description="Keeps the menu loaded off-screen so it appears about 0.1 s sooner. Turn off if menus show up in the wrong place on your monitor setup."
+        />
         <Switch checked={g.launchAtLogin} onChange={(launchAtLogin) => set({ launchAtLogin })} label="Start OrbitMenu with Windows" description="Starts quietly in the tray when you sign in (installed app). Also in the tray menu." />
         <Field label="Open settings shortcut" aside={g.settingsShortcut ? <HotkeyBadge status={status} /> : undefined}>
           <ShortcutField mode="activation" value={g.settingsShortcut} onChange={(settingsShortcut) => set({ settingsShortcut })} placeholder="(none)" />

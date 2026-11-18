@@ -47,6 +47,8 @@ interface Session {
   /** The activation key was released, so a new press is deliberate. */
   mainKeyReleased: boolean;
   switches: number;
+  /** The overlay lost focus to another window; do not pull focus back when closing. */
+  focusLost?: boolean;
   /** performance.now() when the shortcut fired, and when the window was shown. */
   startedAt: number;
   shownAt: number;
@@ -88,10 +90,17 @@ export class OrbitApp {
     this.engine = createActionEngine();
     this.menuWindow = new MenuWindow(this.platform, {
       onBlur: () => {
-        if (this.store.settings.navigation.closeOnBlur && this.menuWindow.msSinceShown > 250) this.closeMenu();
+        if (!this.store.settings.navigation.closeOnBlur || this.menuWindow.msSinceShown <= 250) return;
+        // The user moved to another window (e.g. Alt+Tab): close, but leave focus where they put it.
+        if (this.session) this.session.focusLost = true;
+        this.closeMenu();
       },
       onCrash: () => this.endSession(),
     });
+    this.menuWindow.warmPayload = () => {
+      const menu = this.store.menus.find((m) => m.enabled);
+      return menu && !this.session ? this.buildPayload(menu.id, false, null, 0) : null;
+    };
     this.tray = new AppTray({
       openSettings: () => this.openSettings(),
       testMenu: (id) => void this.openMenu(id, { source: 'tray' }),
@@ -122,6 +131,7 @@ export class OrbitApp {
 
   start(): void {
     this.store.load();
+    this.menuWindow.setMode(this.store.settings.general.keepOverlayReady ? 'park' : 'hide');
     this.adoptIcons();
     this.store.watch();
     this.store.on('changed', () => {
@@ -150,23 +160,37 @@ export class OrbitApp {
     }
     const problems = [...this.store.loadWarnings, ...this.hotkeyProblems()];
     if (problems.length) this.notify('OrbitMenu needs attention', problems.join('\n'));
-    if (process.env.ORBIT_BENCH && !app.isPackaged) void this.benchmark(Number(process.env.ORBIT_BENCH) || 10);
+    if (process.env.ORBIT_BENCH && !app.isPackaged) void this.benchmark(process.env.ORBIT_BENCH);
   }
 
-  /** Development aid: ORBIT_BENCH=<n> opens and closes the first menu n times and logs timings. */
-  private async benchmark(rounds: number): Promise<void> {
+  /**
+   * Development aid for `npm run latency`. ORBIT_BENCH is "gaps=" followed by
+   * the idle time (ms) to wait before each open, e.g. "gaps=1500,500,20000";
+   * a plain number n means n opens 500 ms apart. Each open happens at the
+   * screen centre and is logged with a wall-clock timestamp so an external
+   * probe can measure when the pixels really change.
+   */
+  private async benchmark(spec: string): Promise<void> {
     const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    await wait(1500);
+    const gaps = spec.startsWith('gaps=') ? spec.slice(5).split(',').map(Number) : new Array<number>(Number(spec) || 10).fill(500);
     const menu = this.store.menus.find((m) => m.enabled);
     if (!menu) return;
-    for (let i = 0; i < rounds; i++) {
-      await this.openMenu(menu.id, { source: 'action' });
-      await wait(400);
+    await wait(1500);
+    for (const gap of gaps) {
+      await wait(Math.max(0, gap || 0));
+      const before = this.platform.getForegroundWindow();
+      log.info(`BENCH open ${Date.now()} after ${gap}`);
+      await this.openMenu(menu.id, { source: 'tray' });
+      await wait(700);
       const t = performance.now();
+      log.info(`BENCH close ${Date.now()}`);
       if (this.session) await this.onCancel(this.session.id);
       log.info(`Menu closed in ${(performance.now() - t).toFixed(1)} ms.`);
-      await wait(300);
+      await wait(60);
+      const after = this.platform.getForegroundWindow();
+      log.info(`BENCH focus ${before !== null && before === after ? 'restored' : `changed ${before} -> ${after}`}`);
     }
+    await wait(300);
     log.info('Benchmark finished.');
     this.quit();
   }
@@ -175,9 +199,14 @@ export class OrbitApp {
 
   private applyConfig(): HotkeyStatus[] {
     const statuses = this.applyHotkeys();
+    this.menuWindow.setMode(this.store.settings.general.keepOverlayReady ? 'park' : 'hide');
     this.applyLaunchAtLogin();
     this.tray.update(this.trayState());
-    void resolveIcons(iconPathsOf(this.store.menus)).then((icons) => (this.iconMap = icons));
+    void resolveIcons(iconPathsOf(this.store.menus)).then((icons) => {
+      this.iconMap = icons;
+      // Warm the overlay again now that menus and icons are known.
+      this.menuWindow.prewarm();
+    });
     return statuses;
   }
 
@@ -413,6 +442,7 @@ export class OrbitApp {
   }
 
   async openMenu(menuId: string, opts: OpenOptions): Promise<void> {
+    log.debug(`openMenu(${opts.source}) at ${Date.now()}, overlay visible: ${this.menuWindow.isVisible}, key released: ${this.session?.mainKeyReleased}`);
     if (this.menuWindow.isVisible) {
       // Holding the shortcut auto-repeats it: ignore. A fresh press toggles the menu closed.
       if (opts.source === 'hotkey' && this.session?.mainKeyReleased) this.closeMenu();
@@ -455,7 +485,12 @@ export class OrbitApp {
     this.startPolling();
   }
 
-  private buildPayload(menuId: string, turbo: boolean, center: Vec2 | null): Omit<MenuShowPayload, 'cursor' | 'workArea'> {
+  private buildPayload(
+    menuId: string,
+    turbo: boolean,
+    center: Vec2 | null,
+    sessionId = this.session!.id,
+  ): Omit<MenuShowPayload, 'cursor' | 'workArea'> {
     const menu = this.store.menus.find((m) => m.id === menuId)!;
     // Shell icons are prefetched when the config loads; resolve stragglers in
     // the background so opening the menu never waits for disk access.
@@ -464,7 +499,7 @@ export class OrbitApp {
       void resolveIcons(wanted).then((icons) => Object.assign(this.iconMap, icons));
     }
     return {
-      sessionId: this.session!.id,
+      sessionId,
       menu,
       menuNames: Object.fromEntries(this.store.menus.map((m) => [m.id, m.name])),
       settings: this.store.settings,
@@ -521,10 +556,7 @@ export class OrbitApp {
   async onCancel(sessionId: number): Promise<void> {
     if (this.session?.id !== sessionId) return;
     const s = this.endSession();
-    await this.menuWindow.hide();
-    if (s?.targetWindow && this.platform.getForegroundWindow() !== s.targetWindow) {
-      this.platform.bringToForeground(s.targetWindow);
-    }
+    await this.menuWindow.hide(s?.focusLost ? 'keep' : (s?.targetWindow ?? null));
   }
 
   async onSelect(req: MenuSelectRequest): Promise<void> {
@@ -534,7 +566,7 @@ export class OrbitApp {
     const item = menu ? itemAtPath(menu, req.path) : null;
     if (!item || item.action.type === 'submenu') return;
     this.endSession();
-    await this.menuWindow.hide();
+    await this.menuWindow.hide(s.targetWindow);
     if (item.action.type === 'menu') {
       await this.openMenu(item.action.menuId, { source: 'action' });
       return;

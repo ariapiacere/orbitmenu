@@ -105,7 +105,15 @@ class OverlayController {
     const center = clampCenter(wanted, levelExtent(level, a), area);
     level = { ...level, center };
     this.levels = [{ spec: level, items: p.menu.items, path: [] }];
-    this.renderer.push(level, switching ? center : p.cursor);
+    // The first ring appears in place: sliding it in would delay the moment it can be read.
+    this.renderer.push(level, center);
+
+    if (p.prewarm) {
+      // Rendered only to warm fonts, icons and the GPU; stay inert until cleared.
+      this.payload = null;
+      this.levels = [];
+      return;
+    }
 
     this.pointer = { ...p.cursor };
     // Keep the pointer on the hub when the menu had to move away from the cursor.

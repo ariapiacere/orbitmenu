@@ -64,9 +64,10 @@ OrbitMenu lives in the system tray. Press <kbd>Ctrl</kbd>+<kbd>Space</kbd> to op
 | `npm run package` | Packaged app in `out/OrbitMenu-win32-x64` |
 | `npm run make` | Squirrel installer (`out/make/squirrel.windows/x64/OrbitMenu-Setup.exe`) and a portable zip |
 | `npm run release` | Test, build and publish the current version as a GitHub Release (see below) |
+| `npm run latency` | Measure real key-to-pixels latency and check the overlay's safety properties (needs an unlocked desktop) |
 | `npm run icons` | Regenerate the logo, app icon and tray icon from code |
 
-Development aids: `ORBIT_BENCH=<n>` opens and closes the first menu *n* times and logs the timings; `ORBIT_DEBUG_CAPTURE=<file.png>` saves what the overlay rendered (dev builds only).
+Development aids (dev builds only): `ORBIT_USER_DATA=<folder>` runs with a separate profile; `ORBIT_OVERLAY=hide|park` forces an overlay mode; `ORBIT_DEBUG_CAPTURE=<file.png>` saves what the overlay rendered.
 
 ### Command line
 

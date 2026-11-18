@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.4
+
+- **Menus appear about four times sooner.** Measured from key press to pixels on screen: 152 ms → 35 ms, and the first press after start-up 167 ms → 53 ms.
+  - The overlay now stays loaded off-screen between menus instead of being hidden and re-shown (Settings → Behaviour → *Keep the menu ready for instant opening*; turn it off to get the old behaviour).
+  - The first ring is fully visible on its first frame; the fade-in and slide-in are gone. Default animation 90 ms.
+  - At start-up, and every few minutes, a real menu is rendered invisibly so the first press is not a cold start.
+- Closing a menu is immediate, and focus is handed straight back to the window you were in.
+- If you switch to another window while a menu is open (e.g. Alt+Tab), the menu closes without pulling focus back.
+- New developer tool `npm run latency` measures real key-to-pixels latency.
+
 ## 0.2.3
 
 - **Drag and drop icons**: drop an image from Explorer (or a browser) onto an item's icon or name area, the menu icon, or the icon picker. It is copied into OrbitMenu's icon folder like a chosen file.

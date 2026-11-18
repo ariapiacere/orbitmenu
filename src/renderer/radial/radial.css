@@ -129,11 +129,10 @@
     translate var(--om-anim) var(--om-ease-out);
 }
 
-/* Entry: start mostly visible and close to the final layout, so the menu
-   reads as "there" on the first frame and settles quickly. */
+/* Entry: everything is fully opaque on the very first frame — a fade reads as
+   input lag. Items only travel the last stretch to their place. */
 .om-level.is-entering .om-level-inner {
-  opacity: 0.4;
-  translate: calc(var(--from-x, 0px) * 0.6) calc(var(--from-y, 0px) * 0.6);
+  translate: calc(var(--from-x, 0px) * 0.35) calc(var(--from-y, 0px) * 0.35);
   transition: none;
 }
 
@@ -258,9 +257,8 @@
 }
 
 .om-level.is-entering .om-item {
-  transform: translate(calc(var(--x) * 0.62 - 50%), calc(var(--y) * 0.62 - 50%));
-  opacity: 0.25;
-  scale: 0.75;
+  transform: translate(calc(var(--x) * 0.88 - 50%), calc(var(--y) * 0.88 - 50%));
+  scale: 0.92;
   transition: none;
 }
 
