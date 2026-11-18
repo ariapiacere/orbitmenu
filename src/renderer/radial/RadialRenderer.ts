@@ -108,14 +108,13 @@ export class RadialRenderer {
     this.root.classList.remove('om-closing');
   }
 
-  /** Adds a level on top. `from` is where it grows out of (the selection point). */
-  push(spec: LevelSpec, from?: Vec2, animate = true): void {
+  /** Adds a level on top. It is drawn in its final layout immediately. */
+  push(spec: LevelSpec): void {
     const parent = this.levels.at(-1);
     if (parent) parent.el.classList.add('is-parent');
     const view = this.buildLevel(spec);
     this.levels.push(view);
     this.stage.appendChild(view.el);
-    if (animate) this.animateIn(view, from ?? spec.center);
     this.drawTethers();
     this.hovered = NONE;
     this.applyHover(view, NONE);
@@ -340,19 +339,6 @@ export class RadialRenderer {
     label.className = 'om-label';
     label.textContent = item.name;
     return node;
-  }
-
-  private animateIn(view: LevelView, from: Vec2): void {
-    const el = view.el;
-    const dx = from.x - view.spec.center.x;
-    const dy = from.y - view.spec.center.y;
-    el.style.setProperty('--from-x', `${dx}px`);
-    el.style.setProperty('--from-y', `${dy}px`);
-    el.classList.add('is-entering');
-    // Commit the start state with a forced style flush, then start the
-    // transition in the same frame: the menu is visible on the first paint.
-    void el.offsetWidth;
-    el.classList.remove('is-entering');
   }
 
   private applyHover(view: LevelView, index: number): void {

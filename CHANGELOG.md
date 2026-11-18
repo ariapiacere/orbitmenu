@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5
+
+- **No more bounce when a menu opens.** A ring now appears in its final layout on its very first frame; the items no longer start closer in and jump outward. Verified frame by frame from the screen: after the first visible frame nothing moves.
+- Hover feedback is calmer: the item under the pointer grows slightly (8 % instead of 13 %) with a plain ease-out instead of a springy overshoot.
+- Submenus appear in place and the parent ring simply fades out; closing fades without shrinking.
+- New developer tool `npm run frames` records the opening animation from the screen frame by frame.
+
 ## 0.2.4
 
 - **Menus appear about four times sooner.** Measured from key press to pixels on screen: 152 ms → 35 ms, and the first press after start-up 167 ms → 53 ms.

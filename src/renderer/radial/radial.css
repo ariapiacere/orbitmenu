@@ -6,7 +6,8 @@
   --om-item-size: 54px;
   --om-hub-size: 100px;
   --om-anim: 170ms;
-  --om-ease: cubic-bezier(0.2, 0.9, 0.25, 1.08);
+  /* No overshoot anywhere: at these speeds a springy curve reads as a twitch. */
+  --om-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --om-ease-out: cubic-bezier(0.25, 0.8, 0.3, 1);
   --om-accent-soft: color-mix(in srgb, var(--om-accent) 20%, transparent);
   --om-accent-glow: color-mix(in srgb, var(--om-accent) 42%, transparent);
@@ -84,14 +85,11 @@
 }
 
 .om-stage {
-  transition:
-    opacity calc(var(--om-anim) * 0.8) ease,
-    scale calc(var(--om-anim) * 0.8) ease;
+  transition: opacity calc(var(--om-anim) * 0.8) ease;
 }
 
 .om-closing .om-stage {
   opacity: 0;
-  scale: 0.97;
 }
 
 .om-tethers {
@@ -124,17 +122,11 @@
   top: 0;
   width: 0;
   height: 0;
-  transition:
-    opacity var(--om-anim) var(--om-ease-out),
-    translate var(--om-anim) var(--om-ease-out);
+  transition: opacity var(--om-anim) var(--om-ease-out);
 }
 
-/* Entry: everything is fully opaque on the very first frame — a fade reads as
-   input lag. Items only travel the last stretch to their place. */
-.om-level.is-entering .om-level-inner {
-  translate: calc(var(--from-x, 0px) * 0.35) calc(var(--from-y, 0px) * 0.35);
-  transition: none;
-}
+/* A ring appears in its final layout on its first frame: no fade (reads as
+   input lag) and no travel (reads as a twitch). Only leaving fades out. */
 
 .om-level.is-leaving .om-level-inner {
   opacity: 0;
@@ -249,23 +241,16 @@
   width: var(--om-item-size);
   height: var(--om-item-size);
   transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%));
+  /* Items never travel; only their highlight (scale, opacity) is eased. */
   transition:
-    transform var(--om-anim) var(--om-ease),
-    opacity var(--om-anim) ease,
-    scale calc(var(--om-anim) * 0.7) var(--om-ease);
+    opacity calc(var(--om-anim) * 0.7) ease,
+    scale calc(var(--om-anim) * 0.6) var(--om-ease);
   z-index: 2;
 }
 
-.om-level.is-entering .om-item {
-  transform: translate(calc(var(--x) * 0.88 - 50%), calc(var(--y) * 0.88 - 50%));
-  scale: 0.92;
-  transition: none;
-}
-
+/* The ring of a parent level simply fades out behind the submenu. */
 .om-level.is-parent .om-item {
-  transform: translate(-50%, -50%);
   opacity: 0;
-  scale: 0.3;
 }
 
 .om-disc {
@@ -319,7 +304,7 @@
 }
 
 .om-item.is-hovered {
-  scale: 1.13;
+  scale: 1.08;
   z-index: 3;
 }
 

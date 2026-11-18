@@ -25,7 +25,6 @@ export function PreviewPane({ menu, appearance, path, selectedId, interactive = 
   const rendererRef = useRef<RadialRenderer | null>(null);
   const levelRef = useRef<LevelSpec | null>(null);
   const scaleRef = useRef(1);
-  const lastPathKey = useRef('');
   const icons = useEditor((s) => s.icons);
   const menuNames = useEditor((s) => s.config.menus);
 
@@ -52,7 +51,7 @@ export function PreviewPane({ menu, appearance, path, selectedId, interactive = 
     const level = buildLevel(owner?.name ?? menu.name, owner?.icon ?? menu.icon, items, { x: 0, y: 0 }, path.length ? 180 : null, appearance, names);
     levelRef.current = level;
     // Scale the ring down when the pane is too small for it.
-    const render = (animate: boolean) => {
+    const render = () => {
       const ext = levelExtent(level, { ...appearance, scale: 1 });
       const avail = Math.min(stage.clientWidth / 2 / ext.x, stage.clientHeight / 2 / ext.y);
       const scale = Math.min(appearance.scale, Math.max(0.35, avail));
@@ -60,18 +59,16 @@ export function PreviewPane({ menu, appearance, path, selectedId, interactive = 
       r.setAppearance({ ...appearance, scale, showTrail: false });
       r.setResolvedIcons(icons);
       r.clear();
-      r.push(level, undefined, animate);
+      r.push(level);
       r.setHover(selectedIndex);
     };
-    const key = `${menu.id}/${path.join('/')}`;
-    render(key !== lastPathKey.current);
-    lastPathKey.current = key;
+    render();
     let size = `${stage.clientWidth}x${stage.clientHeight}`;
     const ro = new ResizeObserver(() => {
       const next = `${stage.clientWidth}x${stage.clientHeight}`;
       if (next === size) return;
       size = next;
-      render(false);
+      render();
     });
     ro.observe(stage);
     return () => ro.disconnect();

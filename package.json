@@ -1,7 +1,7 @@
 {
   "name": "orbitmenu",
   "productName": "OrbitMenu",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A fast radial launcher for Windows: open a pie menu at the cursor and run apps, shortcuts, snippets and macros with clicks or gestures.",
   "main": "dist/main/index.js",
   "author": "OrbitMenu contributors",
@@ -18,7 +18,8 @@
     "make": "node scripts/build.mjs && electron-forge make",
     "selftest": "node scripts/selftest.mjs",
     "release": "node scripts/release.mjs",
-    "latency": "node scripts/build.mjs && node scripts/latency.mjs"
+    "latency": "node scripts/build.mjs && node scripts/latency.mjs",
+    "frames": "node scripts/build.mjs && node scripts/frames.mjs"
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.1",

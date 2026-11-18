@@ -105,8 +105,7 @@ class OverlayController {
     const center = clampCenter(wanted, levelExtent(level, a), area);
     level = { ...level, center };
     this.levels = [{ spec: level, items: p.menu.items, path: [] }];
-    // The first ring appears in place: sliding it in would delay the moment it can be read.
-    this.renderer.push(level, center);
+    this.renderer.push(level);
 
     if (p.prewarm) {
       // Rendered only to warm fonts, icons and the GPU; stay inert until cleared.
@@ -423,7 +422,7 @@ class OverlayController {
     if (distance(clamped, center) > 0.5) level = build(clamped);
 
     this.levels.push({ spec: level, items: item.children, path: [...parent.path, item.id] });
-    this.renderer.push(level, via === 'pointer' ? at : pointAt(pc, parent.spec.angles[idx]!, parent.spec.ringRadius));
+    this.renderer.push(level);
 
     if (via === 'pointer') {
       // Only move the pointer if it would otherwise land on an item of the new
